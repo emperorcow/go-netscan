@@ -10,7 +10,6 @@ import (
 
 	"github.com/emperorcow/go-netscan/scanners"
 	"github.com/emperorcow/go-netscan/scanners/ssh"
-	"github.com/emperorcow/go-netscan/scanners/winrm"
 )
 
 // A channel to hold our input data.  It will be one target string per line
@@ -216,18 +215,14 @@ func runScanners(scanner scanners.Scanner, creds []scanners.Credential, exec str
 	// running.
 	runDoneWait.Add(1)
 
-	// Prepare our data in the scanner before we start running scans
-	err := scanner.Prepare(creds, exec, outChan)
-	if err != nil {
-		return
-	}
-
 	for {
 		select {
 		//In the event we have a target, let's process it.
 		case target := <-inChan:
-			scanner.Scan(target)
-			// TODO: Add forced timeouts to scans
+			for _, cred := range creds {
+				scanner.Scan(target, cred, exec, outChan)
+				// LOW PRIORITY: Add forced timeouts to scans
+			}
 
 		// We'll use doneChan to signal that the program is complete (probably out of input).
 		// When we get data on this channel as a signal, we'll signal that this routine is done
@@ -242,10 +237,9 @@ func runScanners(scanner scanners.Scanner, creds []scanners.Credential, exec str
 
 // A function to process through all of the scanners we have and load them into a map
 func setupScanners() map[string]scanners.Scanner {
-	scanners := map[string]scanners.Scanner{}
+	var scanners map[string]scanners.Scanner
 
 	scanners["ssh"] = ssh.NewScanner()
-	scanners["winrm"] = winrm.NewScanner()
 
 	return scanners
 }
