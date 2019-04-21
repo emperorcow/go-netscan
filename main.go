@@ -4,20 +4,19 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
 
-	"golang.org/x/crypto/ssh"
+	"github.com/emperorcow/go-netscan/scanners"
+	"github.com/emperorcow/go-netscan/scanners/ssh"
 )
-
 
 // A channel to hold our input data.  It will be one target string per line
 var inChan chan string
 
 // A channel of Result structs to hold our output before written to the file / stdout
-var outChan chan Result
+var outChan chan scanners.Result
 
 // A channel we'll use to signal when we're out of input so our goroutines can stop
 var runDoneChan chan bool
@@ -29,6 +28,8 @@ var runDoneWait sync.WaitGroup
 var outDoneWait sync.WaitGroup
 
 func main() {
+	scannerList := setupScanners()
+
 	// Let's setup our flags and parse them
 	optTargets := flag.String("targets", "", "File of targets to connect to (host:port).  Port is optional.")
 	optOutFile := flag.String("out", "", "File to write our detailed results to.")
@@ -53,7 +54,7 @@ func main() {
 	}
 
 	// If we can't create the output file, error out
-	outFile, err := os.Create(*optOut)
+	outFile, err := os.Create(*optOutFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Unable to create output file: %s\n", err.Error())
 	}
@@ -66,15 +67,30 @@ func main() {
 		return
 	}
 
+	// Check and make sure we support the protocol
+	if _, ok := scannerList[*optProtocol]; !ok {
+		fmt.Fprintf(os.Stderr, "ERROR: %s is not a supported protocol.", *optProtocol)
+	}
+
 	// If we didn't get a auth file, print an error.
 	if *optAuthFile == "" {
-		fmpt.Fprint(os.Stderr, "ERROR: Authentication file was not defined.\n")
+		fmt.Fprint(os.Stderr, "ERROR: Authentication file was not defined.\n")
+		flag.PrintDefaults()
+		return
+	}
+
+	// TODO: Validate that optAuthType is one of the ones we currently have.
+	credentials, err := parseCredentials(*optAuthFile, *optAuthType)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: Could not parse credential file: %s", err)
+		flag.PrintDefaults()
+		return
 	}
 
 	// Setup our input channels, with out and done being async, but limit in to
 	// the number of goroutines we're going to use
 	inChan = make(chan string, *optThreads)
-	outChan = make(chan Result)
+	outChan = make(chan scanners.Result)
 	runDoneChan = make(chan bool, *optThreads)
 	outDoneChan = make(chan bool, 1)
 
@@ -84,7 +100,7 @@ func main() {
 	// Startup goroutines for the number the user gave us.  Each will connect to hosts
 	// and try and run a command if one was provided.
 	for i := 0; i < *optThreads; i++ {
-		go runScanners(*optAuthType, , authUser, *optCmd, i)
+		go runScanners(scannerList[*optProtocol], credentials, *optCmd)
 	}
 
 	// This function loops through all of our input and adds it to the proper
@@ -194,7 +210,7 @@ func runOutput(outFile *os.File) {
 //
 // To end this loop, any data should be sent down the runDoneChan to signal program
 // complete.
-func runConnect(authtype string, authdata []byte, user, cmd string, num int) {
+func runScanners(scanner scanners.Scanner, creds []scanners.Credential, exec string) {
 	// Let's increase the WaitGroup we have so main knows how many goroutines are
 	// running.
 	runDoneWait.Add(1)
@@ -203,6 +219,11 @@ func runConnect(authtype string, authdata []byte, user, cmd string, num int) {
 		select {
 		//In the event we have a target, let's process it.
 		case target := <-inChan:
+			for _, cred := range creds {
+				scanner.Scan(target, cred, exec, outChan)
+				// LOW PRIORITY: Add forced timeouts to scans
+			}
+
 		// We'll use doneChan to signal that the program is complete (probably out of input).
 		// When we get data on this channel as a signal, we'll signal that this routine is done
 		// so main knows when they're all complete.  Finally, we'll return
@@ -214,5 +235,45 @@ func runConnect(authtype string, authdata []byte, user, cmd string, num int) {
 	}
 }
 
+// A function to process through all of the scanners we have and load them into a map
+func setupScanners() map[string]scanners.Scanner {
+	var scanners map[string]scanners.Scanner
 
-func parseCredentials()
+	scanners["ssh"] = ssh.NewScanner()
+
+	return scanners
+}
+
+//func checkAuthType(scanners map[string]scanners.Scanner)
+
+// Handles the parsing of credentials files, which will be  comma separated list of
+// credential pairs in the format: USERNAME,PASSWORD.  Password and username may
+// differ in specific definition based on the authentication type.
+func parseCredentials(filePath, authType string) ([]scanners.Credential, error) {
+	// Open our file
+	fileHandle, err := os.Open(filePath)
+	if err != nil {
+		return []scanners.Credential{}, err
+	}
+
+	// Build a temp location for our credentials
+	var tempList []scanners.Credential
+
+	// Open a buffer for the file and loop through each line
+	fileScanner := bufio.NewScanner(fileHandle)
+	for fileScanner.Scan() {
+		// Split the line based on the first comma and then add it to the cred array
+		splitData := strings.SplitAfterN(fileScanner.Text(), ",", 2)
+
+		tempList = append(tempList, scanners.Credential{
+			Type:     authType,
+			Account:  splitData[0],
+			AuthData: splitData[1],
+		})
+	}
+	if err := fileScanner.Err(); err != nil {
+		return []scanners.Credential{}, err
+	}
+
+	return tempList, nil
+}
