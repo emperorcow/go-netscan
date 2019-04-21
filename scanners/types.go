@@ -17,8 +17,10 @@ type Scanner interface {
 	SupportedAuthentication() []string
 	// Examples of each authentication type should look like
 	SupportedAuthenticationExample() map[string]string
+	// Any prep work we need to do before we start running scanning, such as loading files into memory, etc. so we can be efficient with our scans
+	Prepare(creds []Credential, exec string, out chan Result) error
 	// Actually perform a scan.  Will be run in a go-routine
-	Scan(target string, cred Credential, exec string, out chan Result)
+	Scan(target string)
 }
 
 // A struct to hold our results before we output them
