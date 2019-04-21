@@ -39,7 +39,16 @@ func main() {
 	// Using the word threads here so it makes sense to end users, but we're really using goroutines
 	optThreads := flag.Int("threads", 10, "Number of concurrent connections to attempt.")
 	optCmd := flag.String("cmd", "", "Command to run on remote systems. Newlines will be replaced with <br>. <OPTIONAL>")
+	optHelp := flag.Bool("help", false, "Get a full listing of every protocol, the supported authentication, and input file examples")
 	flag.Parse()
+
+	// If we got the help flag, ignore everything else and just print out everything we've got
+	if *optHelp {
+		fmt.Print("Usage: \n")
+		flag.PrintDefaults()
+		printScannerHelpData(scannerList)
+		return
+	}
 
 	// If we didn't get any targets, print an error.
 	if *optTargets == "" {
@@ -79,7 +88,14 @@ func main() {
 		return
 	}
 
-	// TODO: Validate that optAuthType is one of the ones we currently have.
+	// Check to make sure we support this authentication type
+	if checkAuthType(scannerList[*optProtocol], *optAuthType) {
+		fmt.Fprint(os.Stderr, "ERROR: Authentication type '%s' is not supported.\n", *optAuthType)
+		flag.PrintDefaults()
+		return
+	}
+
+	// Parse all of our credentials into memory for our use from the input file
 	credentials, err := parseCredentials(*optAuthFile, *optAuthType)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Could not parse credential file: %s", err)
@@ -241,14 +257,38 @@ func runScanners(scanner scanners.Scanner, creds []scanners.Credential, exec str
 
 // A function to process through all of the scanners we have and load them into a map
 func setupScanners() map[string]scanners.Scanner {
-	var scanners map[string]scanners.Scanner
+	scanners := make(map[string]scanners.Scanner)
 
 	scanners["ssh"] = ssh.NewScanner()
 
 	return scanners
 }
 
-//func checkAuthType(scanners map[string]scanners.Scanner)
+// A function to process through and print all of the examples for auth types
+func printScannerHelpData(scanners map[string]scanners.Scanner) {
+	fmt.Print("Supported Protocols and associated Authentication Types: \n")
+
+	// First we loop through every scanner and get every auth type
+	for _, scanner := range scanners {
+		// Print out our scanner info
+		fmt.Printf("  - %s: %s\n", scanner.Name(), scanner.Description())
+		for key, example := range scanner.SupportedAuthenticationExample() {
+			// Print out the authentication types and example input
+			fmt.Printf("         %s\t\t%s\n", key, example)
+		}
+	}
+}
+
+// A function to check out and make sure our authentication type is supported
+func checkAuthType(scanner scanners.Scanner, auth string) bool {
+	// Check to see if we're in the slice by looping through it, if we find it return true
+	for _, key := range scanner.SupportedAuthentication() {
+		if key == auth {
+			return true
+		}
+	}
+	return false
+}
 
 // Handles the parsing of credentials files, which will be  comma separated list of
 // credential pairs in the format: USERNAME,PASSWORD.  Password and username may
