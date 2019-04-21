@@ -46,7 +46,7 @@ func (this sshScanner) SupportedAuthenticationExample() map[string]string {
 }
 
 // Get our credential files or usernames loaded and ready to run our scans
-func (this sshScanner) Prepare(creds []scanners.Credential, cmd string, outChan chan scanners.Result) error {
+func (this *sshScanner) Prepare(creds []scanners.Credential, cmd string, outChan chan scanners.Result) error {
 	// Load our output channel and command into the struct
 	this.out = outChan
 	this.cmd = cmd
@@ -121,7 +121,6 @@ func (this sshScanner) Scan(target string) {
 		// Finally, let's pass our result to the proper channel to write out to the user
 		this.out <- result
 	}
-
 }
 
 // Connects to a host using a SSH configuration struct.  Returns the
@@ -199,5 +198,5 @@ func (this sshScanner) prepPassConfig(user, pass string) (ssh.ClientConfig, erro
 
 // Creates a new scanner for us to add to the main loop
 func NewScanner() scanners.Scanner {
-	return sshScanner{}
+	return &sshScanner{}
 }

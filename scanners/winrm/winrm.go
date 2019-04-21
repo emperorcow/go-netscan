@@ -24,7 +24,7 @@ func (this winrmScanner) Name() string {
 
 // Returns a description of the scanner
 func (this winrmScanner) Description() string {
-	return "Windows Remote Managment (winrmScanner)"
+	return "Windows Remote Managment (WinRM)"
 }
 
 // Return the types of auth we support in  this scanner

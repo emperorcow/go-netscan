@@ -90,8 +90,8 @@ func main() {
 	}
 
 	// Check to make sure we support this authentication type
-	if checkAuthType(scannerList[*optProtocol], *optAuthType) {
-		fmt.Fprint(os.Stderr, "ERROR: Authentication type '%s' is not supported.\n", *optAuthType)
+	if !checkAuthType(scannerList[*optProtocol], *optAuthType) {
+		fmt.Fprintf(os.Stderr, "ERROR: Authentication type '%s' is not supported.\n", *optAuthType)
 		flag.PrintDefaults()
 		return
 	}
@@ -260,6 +260,8 @@ func runScanners(scanner scanners.Scanner, creds []scanners.Credential, exec str
 func setupScanners() map[string]scanners.Scanner {
 	scanners := make(map[string]scanners.Scanner)
 
+	// If adding a new scanner, you must add it to this array because Go is static and we're
+	// not supporting plugins for now because they don't work in Windows
 	scanners["ssh"] = ssh.NewScanner()
 	scanners["winrm"] = winrm.NewScanner()
 
@@ -311,12 +313,14 @@ func parseCredentials(filePath, authType string) ([]scanners.Credential, error) 
 		// Split the line based on the first comma and then add it to the cred array
 		splitData := strings.SplitAfterN(fileScanner.Text(), ",", 2)
 
+		// Add the data to our credential array
 		tempList = append(tempList, scanners.Credential{
 			Type:     authType,
 			Account:  splitData[0],
 			AuthData: splitData[1],
 		})
 	}
+	// If there are any errors, we will just return them from this function
 	if err := fileScanner.Err(); err != nil {
 		return []scanners.Credential{}, err
 	}
