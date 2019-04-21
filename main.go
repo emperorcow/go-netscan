@@ -191,7 +191,7 @@ func runOutput(outFile *os.File) {
 			}
 
 			// Finally, let's write the string to our output file.
-			outFile.WriteString(fmt.Sprintf("'%s','%t','%s','%s'\n", result.Host, result.Status, result.Message, result.Output))
+			outFile.WriteString(fmt.Sprintf("'%s','%s','%s','%t','%s','%s'\n", result.Host, result.Auth.Account, result.Auth.AuthData, result.Status, result.Message, result.Output))
 
 		// We'll use runDoneChan to signal that the program is complete (probably out of input).
 		// Once we're done printing all of our output, let's signal that we're done.
