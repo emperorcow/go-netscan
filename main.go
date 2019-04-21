@@ -10,6 +10,7 @@ import (
 
 	"github.com/emperorcow/go-netscan/scanners"
 	"github.com/emperorcow/go-netscan/scanners/ssh"
+	"github.com/emperorcow/go-netscan/scanners/winrm"
 )
 
 // A channel to hold our input data.  It will be one target string per line
@@ -260,6 +261,7 @@ func setupScanners() map[string]scanners.Scanner {
 	scanners := make(map[string]scanners.Scanner)
 
 	scanners["ssh"] = ssh.NewScanner()
+	scanners["winrm"] = winrm.NewScanner()
 
 	return scanners
 }
