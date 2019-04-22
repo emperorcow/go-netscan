@@ -207,7 +207,7 @@ func runOutput(outFile *os.File) {
 			}
 
 			// Finally, let's write the string to our output file.
-			outFile.WriteString(fmt.Sprintf("'%s','%s','%s','%t','%s','%s'\n", result.Host, result.Auth.Account, result.Auth.AuthData, result.Status, result.Message, result.Output))
+			outFile.WriteString(fmt.Sprintf("'%s','%s','%s','%t','%s','%s'\n", result.Host, result.Auth.Account, result.Auth.AuthData, result.Status, result.Message, replaceNewLines(result.Output)))
 
 		// We'll use runDoneChan to signal that the program is complete (probably out of input).
 		// Once we're done printing all of our output, let's signal that we're done.
@@ -232,26 +232,22 @@ func runScanners(scanner scanners.Scanner, creds []scanners.Credential, exec str
 	// running.
 	runDoneWait.Add(1)
 
-	// Prepare our data in the scanner before we start running scans
-	err := scanner.Prepare(creds, exec, outChan)
-	if err != nil {
-		return
-	}
-
 	for {
-		select {
-		//In the event we have a target, let's process it.
-		case target := <-inChan:
-			scanner.Scan(target)
-			// TODO: Add forced timeouts to scans
+		for _, cred := range creds {
+			select {
+			//In the event we have a target, let's process it.
+			case target := <-inChan:
+				scanner.Scan(target, exec, cred, outChan)
+				// TODO: Add forced timeouts to scans
 
-		// We'll use doneChan to signal that the program is complete (probably out of input).
-		// When we get data on this channel as a signal, we'll signal that this routine is done
-		// so main knows when they're all complete.  Finally, we'll return
-		case <-runDoneChan:
-			runDoneWait.Done()
-			return
-		default:
+			// We'll use doneChan to signal that the program is complete (probably out of input).
+			// When we get data on this channel as a signal, we'll signal that this routine is done
+			// so main knows when they're all complete.  Finally, we'll return
+			case <-runDoneChan:
+				runDoneWait.Done()
+				return
+			default:
+			}
 		}
 	}
 }
@@ -311,7 +307,7 @@ func parseCredentials(filePath, authType string) ([]scanners.Credential, error) 
 	fileScanner := bufio.NewScanner(fileHandle)
 	for fileScanner.Scan() {
 		// Split the line based on the first comma and then add it to the cred array
-		splitData := strings.SplitAfterN(fileScanner.Text(), ",", 2)
+		splitData := strings.SplitN(fileScanner.Text(), ",", 2)
 
 		// Add the data to our credential array
 		tempList = append(tempList, scanners.Credential{
@@ -326,4 +322,12 @@ func parseCredentials(filePath, authType string) ([]scanners.Credential, error) 
 	}
 
 	return tempList, nil
+}
+
+// This function takes a string and replaces all newlines (windows and linux) with
+// a <br>.  This is so that console output from run commands will still be on a
+// single line.
+func replaceNewLines(input string) string {
+	temp := strings.Replace(input, "\r\n", "<br>", -1)
+	return strings.Replace(temp, "\n", "<br>", -1)
 }

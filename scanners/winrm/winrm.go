@@ -2,7 +2,6 @@ package winrm
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -12,11 +11,7 @@ import (
 	"github.com/masterzen/winrm"
 )
 
-type winrmScanner struct {
-	out   chan scanners.Result
-	creds []scanners.Credential
-	cmd   string
-}
+type winrmScanner struct{}
 
 // Returns the name of this scanner
 func (this winrmScanner) Name() string {
@@ -40,76 +35,54 @@ func (this winrmScanner) SupportedAuthenticationExample() map[string]string {
 	}
 }
 
-// Gets out credentials
-func (this *winrmScanner) Prepare(creds []scanners.Credential, cmd string, outChan chan scanners.Result) error {
-	// Load out output channel and command
-	this.out = outChan
-	this.cmd = cmd
-	this.creds = creds
-	return nil
-}
-
 // Runs the actual scan, takes an input of our target, the creds we need to use for this one,
 // a command to run if we have one, and our out channel for results
-func (this winrmScanner) Scan(target string) {
-	fmt.Printf("--- SCAN start\n")
+func (this winrmScanner) Scan(target, exec string, cred scanners.Credential, out chan scanners.Result) {
 	// Add port if the user dosn't provide. Default for basic auth winrm is 5985
 	if !strings.Contains(target, ":") {
 		target = target + ":5985"
 	}
 
 	// Vars to hold our winrmScanner connection and any erros
-	for _, cred := range this.creds {
-		fmt.Printf("--- CRED: %+v\n", cred)
+	var err error
+	var client *winrm.Client
 
-		var err error
-		var client *winrm.Client
-
-		// Depending on the authentication type, run the correct connection function
-		switch cred.Type {
-		case "basic":
-			client, err = this.basicConnect(cred.Account, target, cred.AuthData)
-		}
-
-		fmt.Printf("--- CLIENT: %+v\n", client)
-
-		// Let's assume we connect succesfully
-		result := scanners.Result{
-			Host:    target,
-			Message: "Succesfully connected",
-			Status:  true,
-			Output:  "",
-		}
-
-		// Create a shell on the object, making a connection to the system
-		shell, err := client.CreateShell()
-		fmt.Printf("--- SHELL: %+v\n", shell)
-		if err != nil {
-			result.Message = err.Error()
-			result.Status = false
-		} else {
-			defer shell.Close() // We'll be good and close our connection when done
-		}
-
-		// if we didn't get an error and we have a command ot run, let's do it.
-		if err == nil && this.cmd != "" {
-			fmt.Printf("--- CMD: %s\n", this.cmd)
-			// Execute the command
-			result.Output, err = this.executeCommand(this.cmd, shell)
-			if err != nil {
-				// If we got an error let's let the user know
-				result.Output = "Script Error: " + err.Error()
-			}
-		} else {
-			fmt.Printf("--- CMD: NONE RUN\n")
-		}
-
-		fmt.Printf("--- RES: %+v\n\n", result)
-
-		// Finally pass results to the outChan
-		this.out <- result
+	// Depending on the authentication type, run the correct connection function
+	switch cred.Type {
+	case "basic":
+		client, err = this.basicConnect(cred.Account, target, cred.AuthData)
 	}
-	fmt.Printf("--- SCAN done\n")
+
+	// Let's assume we connect succesfully
+	result := scanners.Result{
+		Host:    target,
+		Auth:    cred,
+		Message: "Succesfully connected",
+		Status:  true,
+		Output:  "",
+	}
+
+	// Create a shell on the object, making a connection to the system
+	shell, err := client.CreateShell()
+	if err != nil {
+		result.Message = err.Error()
+		result.Status = false
+	} else {
+		defer shell.Close() // We'll be good and close our connection when done
+	}
+
+	// if we didn't get an error and we have a command ot run, let's do it.
+	if err == nil && exec != "" {
+		// Execute the command
+		result.Output, err = this.executeCommand(exec, shell)
+		if err != nil {
+			// If we got an error let's let the user know
+			result.Output = "Script Error: " + err.Error()
+		}
+	}
+
+	// Finally pass results to the outChan
+	out <- result
 }
 
 // Executes a command on a winrm client connection, returns an error if there is one
