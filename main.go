@@ -13,8 +13,13 @@ import (
 	"github.com/emperorcow/go-netscan/scanners/winrm"
 )
 
+type inputData struct {
+	Target string
+	Cred   scanners.Credential
+}
+
 // A channel to hold our input data.  It will be one target string per line
-var inChan chan string
+var inChan chan inputData
 
 // A channel of Result structs to hold our output before written to the file / stdout
 var outChan chan scanners.Result
@@ -106,7 +111,7 @@ func main() {
 
 	// Setup our input channels, with out and done being async, but limit in to
 	// the number of goroutines we're going to use
-	inChan = make(chan string, *optThreads)
+	inChan = make(chan inputData, *optThreads)
 	outChan = make(chan scanners.Result)
 	runDoneChan = make(chan bool, *optThreads)
 	outDoneChan = make(chan bool, 1)
@@ -117,12 +122,12 @@ func main() {
 	// Startup goroutines for the number the user gave us.  Each will connect to hosts
 	// and try and run a command if one was provided.
 	for i := 0; i < *optThreads; i++ {
-		go runScanners(scannerList[*optProtocol], credentials, *optCmd)
+		go runScanners(scannerList[*optProtocol], *optCmd)
 	}
 
 	// This function loops through all of our input and adds it to the proper
 	// channel.  If we can't open the intput file, we should error and die.
-	err = runInput(*optTargets)
+	err = runInput(*optTargets, credentials)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: Unable to open input file: %s\n", err.Error())
 		return
@@ -149,7 +154,7 @@ func signalDone(routines int) {
 
 // This function loops through an input file and adds each line to a channel
 // that will be consumed by the runConnect functions.
-func runInput(file string) error {
+func runInput(file string, creds []scanners.Credential) error {
 	// Open the file and if there's an error, return it
 	inFile, err := os.Open(file)
 	if err != nil {
@@ -160,11 +165,17 @@ func runInput(file string) error {
 	// Setup a scanner to read the file line by line
 	scanner := bufio.NewScanner(inFile)
 	for scanner.Scan() {
-		// Get the line from the scanner
-		line := scanner.Text()
+		for _, cred := range creds {
 
-		// Add it to our channel
-		inChan <- line
+			// Get the line from the scanner
+			line := scanner.Text()
+
+			// Add it to our channel
+			inChan <- inputData{
+				Target: line,
+				Cred:   cred,
+			}
+		}
 	}
 
 	// When we're done with the file, return that we're complete.
@@ -183,8 +194,10 @@ func runOutput(outFile *os.File) {
 	// Write the header row to our CSV
 	outFile.WriteString("'Host','Success','Message','Output'\n")
 
+	// Write a header to the console
+	fmt.Printf("%-20s  %-20s  %-20s    %s\n", "Hostname", "Username", "Password", "Result")
+
 	// Create a counter, because we'll want to put in line returns sometimes
-	linecount := 0
 	for {
 		select {
 		// Get some data from our output channel
@@ -193,17 +206,9 @@ func runOutput(outFile *os.File) {
 			// it in green, if not we'll print it in red.  Full details will be in the
 			// output file, but it's nice to provide quick feedback.
 			if result.Status {
-				fmt.Printf("\033[32;1m%-20s\033[0m\t", result.Host)
+				fmt.Printf("%-20.20s  %-20.20s  %-20.20s    \033[32;1mSuccess\033[0m\n", result.Host, result.Auth.Account, result.Auth.AuthData)
 			} else {
-				fmt.Printf("\033[31m%-20s\033[0m\t", result.Host)
-			}
-			// Increase the line counter, if it's greater than 3 then we'll just
-			// print a newline and reset the counter.  This is so we have limited
-			// numbers on each line and try to line up the columns.
-			linecount++
-			if linecount > 3 {
-				fmt.Printf("\n")
-				linecount = 0
+				fmt.Printf("%-20.20s  %-20.20s  %-20.20s    \033[31mFailed\033[0m\n", result.Host, result.Auth.Account, result.Auth.AuthData)
 			}
 
 			// Finally, let's write the string to our output file.
@@ -227,27 +232,25 @@ func runOutput(outFile *os.File) {
 //
 // To end this loop, any data should be sent down the runDoneChan to signal program
 // complete.
-func runScanners(scanner scanners.Scanner, creds []scanners.Credential, exec string) {
+func runScanners(scanner scanners.Scanner, exec string) {
 	// Let's increase the WaitGroup we have so main knows how many goroutines are
 	// running.
 	runDoneWait.Add(1)
 
 	for {
-		for _, cred := range creds {
-			select {
-			//In the event we have a target, let's process it.
-			case target := <-inChan:
-				scanner.Scan(target, exec, cred, outChan)
-				// TODO: Add forced timeouts to scans
+		select {
+		//In the event we have a target, let's process it.
+		case inData := <-inChan:
+			scanner.Scan(inData.Target, exec, inData.Cred, outChan)
+			// TODO: Add forced timeouts to scans
 
-			// We'll use doneChan to signal that the program is complete (probably out of input).
-			// When we get data on this channel as a signal, we'll signal that this routine is done
-			// so main knows when they're all complete.  Finally, we'll return
-			case <-runDoneChan:
-				runDoneWait.Done()
-				return
-			default:
-			}
+		// We'll use doneChan to signal that the program is complete (probably out of input).
+		// When we get data on this channel as a signal, we'll signal that this routine is done
+		// so main knows when they're all complete.  Finally, we'll return
+		case <-runDoneChan:
+			runDoneWait.Done()
+			return
+		default:
 		}
 	}
 }
