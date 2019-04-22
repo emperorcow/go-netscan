@@ -19,7 +19,7 @@ func (this Scanner) Name() string {
 
 // Returns a description of this scanner
 func (this Scanner) Description() string {
-	return "VNC Virtual Network Computing (5900)"
+	return "VNC Virtual Network Computing (VNC))"
 }
 
 // Returns the types of auth we support in this scanner
