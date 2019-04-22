@@ -11,25 +11,25 @@ import (
 	"github.com/masterzen/winrm"
 )
 
-type winrmScanner struct{}
+type Scanner struct{}
 
 // Returns the name of this scanner
-func (this winrmScanner) Name() string {
+func (this Scanner) Name() string {
 	return "winrm"
 }
 
 // Returns a description of the scanner
-func (this winrmScanner) Description() string {
+func (this Scanner) Description() string {
 	return "Windows Remote Managment (WinRM)"
 }
 
 // Return the types of auth we support in  this scanner
-func (this winrmScanner) SupportedAuthentication() []string {
+func (this Scanner) SupportedAuthentication() []string {
 	return []string{"basic"}
 }
 
 // Returns some examples of how to configure the auth info
-func (this winrmScanner) SupportedAuthenticationExample() map[string]string {
+func (this Scanner) SupportedAuthenticationExample() map[string]string {
 	return map[string]string{
 		"basic": "USERNAME,PASSWORD",
 	}
@@ -37,13 +37,13 @@ func (this winrmScanner) SupportedAuthenticationExample() map[string]string {
 
 // Runs the actual scan, takes an input of our target, the creds we need to use for this one,
 // a command to run if we have one, and our out channel for results
-func (this winrmScanner) Scan(target, exec string, cred scanners.Credential, out chan scanners.Result) {
+func (this Scanner) Scan(target, exec string, cred scanners.Credential, out chan scanners.Result) {
 	// Add port if the user dosn't provide. Default for basic auth winrm is 5985
 	if !strings.Contains(target, ":") {
 		target = target + ":5985"
 	}
 
-	// Vars to hold our winrmScanner connection and any erros
+	// Vars to hold our Scanner connection and any erros
 	var err error
 	var client *winrm.Client
 
@@ -86,7 +86,7 @@ func (this winrmScanner) Scan(target, exec string, cred scanners.Credential, out
 }
 
 // Executes a command on a winrm client connection, returns an error if there is one
-func (this winrmScanner) executeCommand(cmd string, shell *winrm.Shell) (string, error) {
+func (this Scanner) executeCommand(cmd string, shell *winrm.Shell) (string, error) {
 	// Execute our command on the connection we have.
 	command, err := shell.Execute(cmd)
 	if err != nil {
@@ -121,7 +121,7 @@ func (this winrmScanner) executeCommand(cmd string, shell *winrm.Shell) (string,
 }
 
 // This function builds out a WinRM Client struct for us to then use to actually connect later.
-func (this winrmScanner) basicConnect(user, host, pass string) (*winrm.Client, error) {
+func (this Scanner) basicConnect(user, host, pass string) (*winrm.Client, error) {
 	// Split the host into host/ip and port
 	tz := strings.Split(host, ":")
 	// Get our two variables
@@ -139,5 +139,5 @@ func (this winrmScanner) basicConnect(user, host, pass string) (*winrm.Client, e
 
 // Create a new scanner
 func NewScanner() scanners.Scanner {
-	return &winrmScanner{}
+	return &Scanner{}
 }

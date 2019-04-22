@@ -9,25 +9,25 @@ import (
 )
 
 // This is our scanner and does all the work from the main
-type sshScanner struct{}
+type Scanner struct{}
 
 // Returns the name of this scanner
-func (this sshScanner) Name() string {
+func (this Scanner) Name() string {
 	return "ssh"
 }
 
 // Returns a description of this scanner
-func (this sshScanner) Description() string {
-	return "Secure Shell (sshScanner)"
+func (this Scanner) Description() string {
+	return "Secure Shell (Scanner)"
 }
 
 // Returns the types of auth we support in this scanner
-func (this sshScanner) SupportedAuthentication() []string {
+func (this Scanner) SupportedAuthentication() []string {
 	return []string{"basic", "sshkey"}
 }
 
 // Returns some examples on how to configure the auth info
-func (this sshScanner) SupportedAuthenticationExample() map[string]string {
+func (this Scanner) SupportedAuthenticationExample() map[string]string {
 	return map[string]string{
 		"basic":  "USERNAME,PASSWORD",
 		"sshkey": "USERNAME,/path/to/key/file.pem",
@@ -36,7 +36,7 @@ func (this sshScanner) SupportedAuthenticationExample() map[string]string {
 
 // Runs the actual scan, takes an input of our target, the creds we need to use for this one,
 // a command to run if we have one, and our out channel for results
-func (this sshScanner) Scan(target, cmd string, cred scanners.Credential, outChan chan scanners.Result) {
+func (this Scanner) Scan(target, cmd string, cred scanners.Credential, outChan chan scanners.Result) {
 	// Add port 22 to the target if we didn't get a port from the user.
 	if !strings.Contains(target, ":") {
 		target = target + ":22"
@@ -92,7 +92,7 @@ func (this sshScanner) Scan(target, cmd string, cred scanners.Credential, outCha
 
 // Connects to a host using a SSH configuration struct.  Returns the
 // SSH client and session structs and an error if there was one.
-func (this sshScanner) connect(user, host string, conf ssh.ClientConfig) (*ssh.Client, *ssh.Session, error) {
+func (this Scanner) connect(user, host string, conf ssh.ClientConfig) (*ssh.Client, *ssh.Session, error) {
 	// Develop the network connection out
 	conn, err := ssh.Dial("tcp", host, &conf)
 	if err != nil {
@@ -110,7 +110,7 @@ func (this sshScanner) connect(user, host string, conf ssh.ClientConfig) (*ssh.C
 }
 
 // Executes a command on an SSH session struct, return an error if there is one
-func (this sshScanner) executeCommand(cmd string, session *ssh.Session) (string, error) {
+func (this Scanner) executeCommand(cmd string, session *ssh.Session) (string, error) {
 	//Runs CombinedOutput, which takes cmd and returns stderr and stdout of the command
 	out, err := session.CombinedOutput(cmd)
 	if err != nil {
@@ -126,7 +126,7 @@ func (this sshScanner) executeCommand(cmd string, session *ssh.Session) (string,
 }
 
 // Connects to a target via SSH using a certificate
-func (this sshScanner) prepCertConfig(user, keyPath string) (ssh.ClientConfig, error) {
+func (this Scanner) prepCertConfig(user, keyPath string) (ssh.ClientConfig, error) {
 	// Load the key file  from disk
 	keyData, err := ioutil.ReadFile(keyPath)
 
@@ -152,7 +152,7 @@ func (this sshScanner) prepCertConfig(user, keyPath string) (ssh.ClientConfig, e
 }
 
 // Connects to a target using SSH with a password in a string.
-func (this sshScanner) prepPassConfig(user, pass string) (ssh.ClientConfig, error) {
+func (this Scanner) prepPassConfig(user, pass string) (ssh.ClientConfig, error) {
 	//Build our config with the password
 	conf := ssh.ClientConfig{
 		User: user,
@@ -165,5 +165,5 @@ func (this sshScanner) prepPassConfig(user, pass string) (ssh.ClientConfig, erro
 
 // Creates a new scanner for us to add to the main loop
 func NewScanner() scanners.Scanner {
-	return &sshScanner{}
+	return &Scanner{}
 }
