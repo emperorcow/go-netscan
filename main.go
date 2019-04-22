@@ -263,6 +263,7 @@ func setupScanners() map[string]scanners.Scanner {
 	// not supporting plugins for now because they don't work in Windows
 	scanners["ssh"] = ssh.NewScanner()
 	scanners["winrm"] = winrm.NewScanner()
+	scanners["vnc"] = winrm.NewScanner()
 
 	return scanners
 }
