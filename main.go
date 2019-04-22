@@ -11,6 +11,7 @@ import (
 	"github.com/emperorcow/go-netscan/inputs/random"
 	"github.com/emperorcow/go-netscan/inputs/wide"
 	"github.com/emperorcow/go-netscan/scanners"
+	"github.com/emperorcow/go-netscan/scanners/smb"
 	"github.com/emperorcow/go-netscan/scanners/ssh"
 	"github.com/emperorcow/go-netscan/scanners/vnc"
 	"github.com/emperorcow/go-netscan/scanners/winrm"
@@ -198,6 +199,7 @@ func setupScanners() map[string]scanners.Scanner {
 	scanners["ssh"] = ssh.NewScanner()
 	scanners["winrm"] = winrm.NewScanner()
 	scanners["vnc"] = vnc.NewScanner()
+	scanners["smb"] = smb.NewScanner()
 
 	return scanners
 }
