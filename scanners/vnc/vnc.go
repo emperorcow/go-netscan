@@ -56,7 +56,8 @@ func (this Scanner) Scan(target, cmd string, cred scanners.Credential, outChan c
 	// Depending on the authentication type, run the correct connection function
 	switch cred.Type {
 	case "basic":
-		pass = cred.AuthData
+		// Because we just have a password we take the first item from the struct
+		pass = cred.Account
 	}
 
 	nc, err := net.Dial("tcp", target)
