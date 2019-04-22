@@ -7,9 +7,12 @@ import (
 	"sync"
 
 	"github.com/emperorcow/go-netscan/inputs"
+	"github.com/emperorcow/go-netscan/inputs/deep"
+	"github.com/emperorcow/go-netscan/inputs/random"
 	"github.com/emperorcow/go-netscan/inputs/wide"
 	"github.com/emperorcow/go-netscan/scanners"
 	"github.com/emperorcow/go-netscan/scanners/ssh"
+	"github.com/emperorcow/go-netscan/scanners/vnc"
 	"github.com/emperorcow/go-netscan/scanners/winrm"
 )
 
@@ -43,7 +46,7 @@ func main() {
 	if *optHelp {
 		fmt.Print("Usage: \n")
 		flag.PrintDefaults()
-		printScannerHelpData(scannerList)
+		printScannerHelpData(scannerList, inputList)
 		return
 	}
 
@@ -194,7 +197,7 @@ func setupScanners() map[string]scanners.Scanner {
 	// not supporting plugins for now because they don't work in Windows
 	scanners["ssh"] = ssh.NewScanner()
 	scanners["winrm"] = winrm.NewScanner()
-	scanners["vnc"] = winrm.NewScanner()
+	scanners["vnc"] = vnc.NewScanner()
 
 	return scanners
 }
@@ -205,13 +208,15 @@ func setupInputs() map[string]inputs.Handler {
 
 	// If we add any new handlers, they go here
 	handlers["wide"] = wide.NewHandler()
+	handlers["deep"] = deep.NewHandler()
+	handlers["random"] = random.NewHandler()
 
 	return handlers
 }
 
 // A function to process through and print all of the examples for auth types
-func printScannerHelpData(scanners map[string]scanners.Scanner) {
-	fmt.Print("Supported Protocols and associated Authentication Types: \n")
+func printScannerHelpData(scanners map[string]scanners.Scanner, handlers map[string]inputs.Handler) {
+	fmt.Print("\n\nSupported Protocols and associated Authentication Types: \n")
 
 	// First we loop through every scanner and get every auth type
 	for _, scanner := range scanners {
@@ -221,6 +226,12 @@ func printScannerHelpData(scanners map[string]scanners.Scanner) {
 			// Print out the authentication types and example input
 			fmt.Printf("         %s\t\t%s\n", key, example)
 		}
+	}
+
+	fmt.Print("\n\nInput File Handlers: \n")
+	// Next we can loop through every input handler and print info
+	for k, handler := range handlers {
+		fmt.Printf("  - %s: %s\n", k, handler.Description())
 	}
 }
 
