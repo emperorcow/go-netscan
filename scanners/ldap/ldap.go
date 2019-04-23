@@ -78,7 +78,17 @@ func (this Scanner) Scan(target, cmd string, cred scanners.Credential, outChan c
 }
 
 // Runs an LDAP query on an existing connection and then returns the output as a string
-func (this Scanner) executeQuery(connection *ldap.Conn, query string) (string, error) {
+func (this Scanner) executeQuery(conn *ldap.Conn, query string) (string, error) {
+	/*	TODO: Add ability to query
+		searchRequest := ldap.NewSearchRequest(
+			"dc=example,dc=com",
+			ldap.ScopeWholeSubtree, ldap.NeverDerefAliases, 0, 0, false,
+			query,
+			[]string{"cn"}, // can it be something else than "cn"?
+			nil,
+		)
+	*/
+
 	return "", nil
 }
 
