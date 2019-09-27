@@ -1,5 +1,6 @@
 # go-netscan
 
+```
 Usage of ./go-netscan:
   -aF string
     	A file formatted properly for the authentication type one credential per line
@@ -33,3 +34,4 @@ Usage of ./go-netscan:
     	log level for V logs
   -vmodule value
     	comma-separated list of pattern=N settings for file-filtered logging
+```
