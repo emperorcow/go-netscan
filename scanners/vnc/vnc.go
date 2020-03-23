@@ -39,7 +39,7 @@ func (this Scanner) SupportedAuthenticationExample() map[string]string {
 func (this Scanner) Scan(target, cmd string, cred scanners.Credential, outChan chan scanners.Result) {
 	// Check our target and see if the default port is there, if not we include it.
 	if !strings.Contains(target, ":") {
-		target = target + ":1234"
+		target = target + ":5900"
 	}
 
 	// Let's assume that we connected successfully and declare the data as such, we can edit it later if we failed
@@ -57,7 +57,7 @@ func (this Scanner) Scan(target, cmd string, cred scanners.Credential, outChan c
 	switch cred.Type {
 	case "basic":
 		// Because we just have a password we take the first item from the struct
-		pass = cred.Account
+		pass = cred.AuthData
 	}
 
 	nc, err := net.Dial("tcp", target)
