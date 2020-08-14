@@ -18,6 +18,7 @@ import (
 	"github.com/emperorcow/go-netscan/scanners/ssh"
 	"github.com/emperorcow/go-netscan/scanners/vnc"
 	"github.com/emperorcow/go-netscan/scanners/winrm"
+	"github.com/emperorcow/go-netscan/scanners/wmi"
 )
 
 // A channel we'll use to signal when we're out of input so our goroutines can stop
@@ -201,6 +202,7 @@ func setupScanners() map[string]scanners.Scanner {
 	// not supporting plugins for now because they don't work in Windows
 	scanners["ssh"] = ssh.NewScanner()
 	scanners["winrm"] = winrm.NewScanner()
+	scanners["wmi"] = wmi.NewScanner()
 	scanners["vnc"] = vnc.NewScanner()
 	scanners["smb"] = smb.NewScanner()
 	scanners["ldap"] = ldap.NewScanner()
